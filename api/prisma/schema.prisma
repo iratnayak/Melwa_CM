@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                     BigInt   @id @default(autoincrement())
+  name                   String
+  email                  String   @unique
+  passwordHash           String   @map("password_hash")
+  role                   String
+  isActive               Boolean  @default(true) @map("is_active")
+  currentRefreshTokenHash String? @map("current_refresh_token_hash")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  enteredCreditTransactions CreditTransaction[] @relation("CreditTransactionEnteredByUser")
+  receivedPayments       Payment[] @relation("PaymentReceivedByUser")
+
+  @@map("users")
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  userId     BigInt?  @map("user_id")
+  entityName String   @map("entity_name")
+  entityId   BigInt   @map("entity_id")
+  action     String
+  oldData    Json?    @map("old_data")
+  newData    Json?    @map("new_data")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("audit_logs")
+}
+
+model Department {
+  id          BigInt   @id @default(autoincrement())
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  employees   Employee[]
+
+  @@map("departments")
+}
+
+model Employee {
+  id             BigInt     @id @default(autoincrement())
+  employeeCode   String     @unique @map("employee_code")
+  fullName       String     @map("full_name")
+  departmentId   BigInt     @map("department_id")
+  department     Department @relation(fields: [departmentId], references: [id])
+  phone          String?
+  isActive       Boolean    @default(true) @map("is_active")
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  creditTransactions CreditTransaction[]
+  payments       Payment[]
+  paymentAllocations PaymentAllocation[]
+
+  @@map("employees")
+}
+
+model BillingCycle {
+  id        BigInt   @id @default(autoincrement())
+  cycleCode String   @unique @map("cycle_code") @db.VarChar(30)
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  dueDate   DateTime @map("due_date") @db.Date
+  status    String   @db.VarChar(30)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  creditTransactions CreditTransaction[]
+  payments   Payment[] @relation("PaymentBillingCycle")
+  paymentsAdvanceApplied Payment[] @relation("PaymentAdvanceAppliedCycle")
+  paymentAllocations PaymentAllocation[]
+
+  @@map("billing_cycles")
+}
+
+model CreditTransaction {
+  id             BigInt       @id @default(autoincrement())
+  employeeId     BigInt       @map("employee_id")
+  billingCycleId BigInt       @map("billing_cycle_id")
+  enteredByUserId BigInt      @map("entered_by_user_id")
+  txnDate        DateTime     @map("txn_date") @db.Date
+  description    String?
+  amount         Decimal      @db.Decimal(14, 2)
+  transactionType String      @default("purchase") @map("transaction_type") @db.VarChar(20)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  employee       Employee     @relation(fields: [employeeId], references: [id])
+  billingCycle   BillingCycle @relation(fields: [billingCycleId], references: [id])
+  enteredByUser  User         @relation("CreditTransactionEnteredByUser", fields: [enteredByUserId], references: [id])
+
+  @@map("credit_transactions")
+}
+
+model Payment {
+  id               BigInt    @id @default(autoincrement())
+  employeeId       BigInt    @map("employee_id")
+  billingCycleId   BigInt?   @map("billing_cycle_id")
+  advanceAppliedBillingCycleId BigInt?   @map("advance_applied_billing_cycle_id")
+  receivedByUserId BigInt    @map("received_by_user_id")
+  paymentDate      DateTime  @map("payment_date") @db.Date
+  amount           Decimal   @db.Decimal(14, 2)
+  method           String    @db.VarChar(30)
+  referenceNo      String?   @map("reference_no") @db.VarChar(100)
+  status           String    @default("recorded") @db.VarChar(30)
+  allocatedAmount  Decimal   @default(0) @map("allocated_amount") @db.Decimal(14, 2)
+  allocatedAt      DateTime? @map("allocated_at") @db.Timestamptz(6)
+  reversedAt       DateTime? @map("reversed_at") @db.Timestamptz(6)
+  reversalReason   String?   @map("reversal_reason")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  employee       Employee      @relation(fields: [employeeId], references: [id])
+  billingCycle   BillingCycle? @relation("PaymentBillingCycle", fields: [billingCycleId], references: [id])
+  advanceAppliedBillingCycle BillingCycle? @relation("PaymentAdvanceAppliedCycle", fields: [advanceAppliedBillingCycleId], references: [id])
+  receivedByUser User          @relation("PaymentReceivedByUser", fields: [receivedByUserId], references: [id])
+  allocations    PaymentAllocation[]
+
+  @@map("payments")
+}
+
+model PaymentAllocation {
+  id              BigInt   @id @default(autoincrement())
+  paymentId       BigInt   @map("payment_id")
+  employeeId      BigInt   @map("employee_id")
+  billingCycleId  BigInt   @map("billing_cycle_id")
+  allocatedAmount Decimal  @map("allocated_amount") @db.Decimal(14, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  payment      Payment      @relation(fields: [paymentId], references: [id])
+  employee     Employee     @relation(fields: [employeeId], references: [id])
+  billingCycle BillingCycle @relation(fields: [billingCycleId], references: [id])
+
+  @@unique([paymentId, billingCycleId])
+  @@index([employeeId, billingCycleId])
+  @@map("payment_allocations")
+}

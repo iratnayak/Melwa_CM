@@ -1,0 +1,18 @@
+# Node & NestJS Compiled Output
+node_modules/
+dist/
+
+# Environment Variables (Passwords & Keys)
+.env
+.env.development
+.env.production
+.env.test
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files (ඔයා Mac එකක් පාවිච්චි කරන නිසා මේක අත්‍යවශ්‍යයි)
+.DS_Store
