@@ -34,7 +34,7 @@ services:
       - postgres_db
 
   # 3. Frontend Service (Next.js)
-frontend:
+  frontend:
     build:
       context: ./client
       dockerfile: Dockerfile
