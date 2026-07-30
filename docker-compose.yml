@@ -1,0 +1,49 @@
+services:
+  # 1. Database Service (PostgreSQL)
+  postgres_db:
+    image: postgres:16-alpine
+    container_name: melwa_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword123
+      POSTGRES_DB: melwa_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. Backend Service (NestJS)
+  backend:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    command: sh -c "npx prisma db push && npm run start:prod"
+    container_name: melwa_backend
+    restart: always
+    ports:
+      - "5001:5000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:mypassword123@postgres_db:5432/melwa_db?schema=public
+      - DATABASE_HOST=postgres_db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=mypassword123
+      - DATABASE_NAME=melwa_db
+    depends_on:
+      - postgres_db
+
+  # 3. Frontend Service (Next.js)
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: melwa_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
