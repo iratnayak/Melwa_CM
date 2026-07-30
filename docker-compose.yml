@@ -22,7 +22,7 @@ services:
     container_name: melwa_backend
     restart: always
     ports:
-      - "5001:5000"
+      - "5001:3000"
     environment:
       - DATABASE_URL=postgresql://postgres:mypassword123@postgres_db:5432/melwa_db?schema=public
       - DATABASE_HOST=postgres_db
